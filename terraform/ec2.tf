@@ -1,77 +1,27 @@
-#AMI DATA
+provider code
 
-data "aws_ami" "api" {
-  most_recent = true
-  owners      = ["self"]
-
-  filter {
-    name   = "tag:server"
-    values = ["api"]
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.0"
+    }
   }
-  filter {
-    name   = "tag:type"
-    values = ["base_image"]
-  }
+}
 
+# Configure the AWS Provider
+
+provider "aws" {
+  version = "~> 4.0"
+  region  = "ap-southeast-1"
 }
 
 
-output "ami_id" {
-  value = data.aws_ami.api.image_id
-}
-
-
-
-
-#IAM ROLE
-
-resource "aws_iam_role" "SSMRole" {
-  name               = "SSMRole"
-  description        = "Role created to allow SSM"
-  assume_role_policy = file("ssm_role.json")
-}
-
-resource "aws_iam_role_policy_attachment" "SSMPolicy" {
-  role       = aws_iam_role.SSMRole.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-}
-
-
-resource "aws_iam_instance_profile" "api_profile" {
-  name = "api_ec2_profile"
-  role = aws_iam_role.SSMRole.name
-}
-
-#EC2
-
-resource "aws_instance" "api" {
-  ami                    = data.aws_ami.api.image_id
-  iam_instance_profile   = aws_iam_instance_profile.api_profile.name
-  instance_type          = var.api_instance_type
-  #vpc_security_group_ids = [aws_security_group.webserver.id]
-
-  user_data = <<EOF
-  #!/bin/bash
-  sudo certbot --apache --agree-tos  -m smw@test.com -d smw.com --non-interactive
-  sudo service apache2 restart
-  EOF
-
-  root_block_device {
-    volume_size = var.api_instance_storage_size
-  }
-
+resource "aws_instance" "web" {
+  ami           = "ami-0af2f764c580cc1f9"
+  instance_type = "t2.micro"
 
   tags = {
-    Name = "${local.common_resource_name}-api"
+    Name = "linux-server"
   }
-
-
-}
-
-
-#Elastic IP
-
-resource "aws_eip_association" "api" {
-  instance_id = aws_instance.api.id
-  public_ip   = aws_eip.api.public_ip
 }
